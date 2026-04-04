@@ -11,7 +11,7 @@ pub enum JobCreationError {
 
 pub enum FileUploadError {
     JobCreationError(JobCreationError),
-    S3UploadFailed,
+    S3UploadFailed(String),
     JobQueueFailed,
     NoFileUploaded
 }
@@ -43,7 +43,7 @@ impl From<JobCreationError> for FileUploadError {
 impl IntoResponse for FileUploadError {
     fn into_response(self) -> axum::response::Response {
         let body = match self {
-            Self::S3UploadFailed => "File could not be uploaded to S3".to_string(),
+            Self::S3UploadFailed(e) => e,
             Self::JobQueueFailed => "Job could not be queue in Job queue".to_string(),
             Self::JobCreationError(JobCreationError::AlreadyExists) => "Job cannot be created, it already exists".to_string(),
             Self::JobCreationError(JobCreationError::Failed) => "Job creation failed".to_string(),

@@ -1,5 +1,6 @@
 use std::env;
 use std::error::Error;
+use aws_sdk_s3::primitives::ByteStream;
 use dotenvy::dotenv;
 
 use axum::extract::{Multipart, State};
@@ -9,7 +10,8 @@ use axum::routing::{get, post};
 use sqlx::postgres::PgPoolOptions;
 
 use crate::server::db::create_job;
-use crate::server::value::{AppState, FileObject, FileUploadError};
+use crate::server::s3::upload_to_s3;
+use crate::server::value::{AppState, FileObject, FileUploadError, JobCreationError};
 use aws_config::load_from_env;
 use aws_sdk_s3::Client;
 
@@ -61,10 +63,10 @@ async fn handle_file_upload(
     let file = accept_form(multipart)
         .await
         .ok_or(FileUploadError::NoFileUploaded)?;
-    let job = create_job(&state.db_conn).await?; 
+    let job_id = create_job(&state.db_conn).await?; 
+    upload_to_s3(&state.s3_client, file, "fileocr").await?;
     Ok(StatusCode::OK)
 }
-
 
 async fn accept_form(mut multipart: Multipart) -> Option<FileObject> {
     if let Some(field) = multipart.next_field().await.unwrap() {
