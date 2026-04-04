@@ -1,0 +1,61 @@
+use aws_sdk_s3::Client;
+use axum::{body::Bytes, http::StatusCode, response::IntoResponse};
+use sqlx::{prelude::FromRow, Pool, Postgres};
+use uuid::Uuid;
+
+pub enum JobCreationError {
+    Failed,
+    AlreadyExists,
+    DBError(String)
+}
+
+pub enum FileUploadError {
+    JobCreationError(JobCreationError),
+    S3UploadFailed,
+    JobQueueFailed,
+    NoFileUploaded
+}
+
+pub  struct FileObject {
+    pub file_key: String,
+    pub file_data: Bytes
+}
+
+
+pub struct RowData {
+    pub status: String,
+    pub total_pages: i32,
+    pub completed_pages: i32
+}
+
+#[derive(Debug, FromRow)]
+pub struct RowDataResult {
+    pub id: Uuid,
+    pub status: String,
+}
+
+impl From<JobCreationError> for FileUploadError {
+    fn from(err: JobCreationError) -> Self {
+        FileUploadError::JobCreationError(err)
+    }
+}
+
+impl IntoResponse for FileUploadError {
+    fn into_response(self) -> axum::response::Response {
+        let body = match self {
+            Self::S3UploadFailed => "File could not be uploaded to S3".to_string(),
+            Self::JobQueueFailed => "Job could not be queue in Job queue".to_string(),
+            Self::JobCreationError(JobCreationError::AlreadyExists) => "Job cannot be created, it already exists".to_string(),
+            Self::JobCreationError(JobCreationError::Failed) => "Job creation failed".to_string(),
+            Self::JobCreationError(JobCreationError::DBError(e)) => e,
+            Self::NoFileUploaded => "File not uploaded".to_string(),
+        };
+        (StatusCode::INTERNAL_SERVER_ERROR, body).into_response()
+    }
+}
+
+#[derive(Clone)]
+pub struct AppState{
+    pub db_conn: Pool<Postgres>,
+    pub s3_client: Client
+}
