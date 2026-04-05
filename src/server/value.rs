@@ -23,9 +23,9 @@ pub  struct FileObject {
 
 
 pub struct RowData {
-    pub status: String,
-    pub total_pages: i32,
-    pub completed_pages: i32
+    pub status: Option<String>,
+    pub total_pages: Option<i32>,
+    pub completed_pages: Option<i32>,
 }
 
 #[derive(Debug, FromRow)]

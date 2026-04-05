@@ -11,6 +11,7 @@ pub async fn upload_to_s3(s3_client: &Client , file: FileObject, bucket_name: &s
         .send()
         .await
         .map_err(|e| FileUploadError::S3UploadFailed(e.to_string()))?;
+    println!("Uploaded successfully");
     Ok(())
 }
 
