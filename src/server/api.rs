@@ -70,6 +70,7 @@ async fn handle_file_upload(
         let _ = fail_job(&state.db_conn, job_id).await;
         return Err(e);
     }
+    //TODO: Add to job queue
 
     Ok(StatusCode::OK)
 }
