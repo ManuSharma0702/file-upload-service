@@ -6,7 +6,7 @@ use crate::server::value::{JobCreationError, RowData, RowDataResult};
 
 pub async fn create_job(db_conn: &Pool<Postgres>) -> Result<String, JobCreationError>{
     let row_data = RowData {
-        status: Some("PENDING".to_string()),
+        status: Some("PENDING_ENQUEUE".to_string()),
         total_pages: Some(0),
         completed_pages: Some(0) 
     };
