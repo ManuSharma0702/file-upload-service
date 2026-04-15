@@ -71,10 +71,10 @@ async fn handle_file_upload(
         return Err(e);
     }
     //TODO: Add to job queue
-    //Use a separate job upload service through one shot channel. Just send the payload, fire and
+    //Use a separate job upload service through a Sender. Just send the payload, fire and
     //forget, to return success immediately instead of waiting here with recv.await and block the
     //response. Now if the upload api returns failure then make the upload service update the status of job in db as enqueue
-    //failed. Then create a background worker which looks for enqueue failed jobs and retry them.
+    //failed. Then create a background worker which looks for split_enqueue_failed jobs and retry them.
     //This retry logic should be implemented for each service separately.
     Ok(StatusCode::OK)
 }
