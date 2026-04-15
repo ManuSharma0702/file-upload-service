@@ -89,7 +89,6 @@ async fn handle_file_upload(
     //failed. Then create a background worker which looks for split_enqueue_failed jobs and retry them.
     //This retry logic should be implemented for each service separately.
 
-    dbg!(&file_url);
     state.job_sender.send(
         Task {
             task_type: "split".to_string(),
