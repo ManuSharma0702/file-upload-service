@@ -1,7 +1,10 @@
 use aws_sdk_s3::Client;
 use axum::{body::Bytes, http::StatusCode, response::IntoResponse};
 use sqlx::{prelude::FromRow, Pool, Postgres};
+use tokio::sync::mpsc::Sender;
 use uuid::Uuid;
+
+use crate::job_upload_service::api::Task;
 
 pub enum JobCreationError {
     Failed,
@@ -13,7 +16,9 @@ pub enum FileUploadError {
     JobCreationError(JobCreationError),
     S3UploadFailed(String),
     JobQueueFailed,
-    NoFileUploaded
+    NoFileUploaded,
+    EnqueueFailed,
+    ApiFailure(String)
 }
 
 pub  struct FileObject {
@@ -49,6 +54,9 @@ impl IntoResponse for FileUploadError {
             Self::JobCreationError(JobCreationError::Failed) => "Job creation failed".to_string(),
             Self::JobCreationError(JobCreationError::DBError(e)) => e,
             Self::NoFileUploaded => "File not uploaded".to_string(),
+            Self::EnqueueFailed => "Task could not be enqueue".to_string(),
+            Self::ApiFailure(e) => e.to_string()
+
         };
         (StatusCode::INTERNAL_SERVER_ERROR, body).into_response()
     }
@@ -57,5 +65,6 @@ impl IntoResponse for FileUploadError {
 #[derive(Clone)]
 pub struct AppState{
     pub db_conn: Pool<Postgres>,
-    pub s3_client: Client
+    pub s3_client: Client,
+    pub job_sender: Sender<Task>
 }
