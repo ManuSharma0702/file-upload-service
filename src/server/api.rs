@@ -77,7 +77,7 @@ async fn handle_file_upload(
     let file_url = match upload_to_s3(&state.s3_client, file, "fileocr").await {
         Ok(val) => val,
         Err(e) => {
-            let _ = fail_job(&state.db_conn, job_id).await;
+            let _ = fail_job(&state.db_conn, &job_id).await;
             return Err(e);
         }
     };
@@ -89,14 +89,23 @@ async fn handle_file_upload(
     //failed. Then create a background worker which looks for split_enqueue_failed jobs and retry them.
     //This retry logic should be implemented for each service separately.
 
-    state.job_sender.send(
+
+
+    //If the channel fails, then respond with error to the user, and fail the job in DB.
+    match state.job_sender.send(
         Task {
             task_type: "split".to_string(),
-            job_id,
+            job_id: job_id.clone(),
             file_url,
             retry_left: 5 
         }
-    ).await.map_err(|_| FileUploadError::EnqueueFailed)?;
+    ).await {
+        Ok(_) => (),
+        Err(_)  => {
+            let _ = fail_job(&state.db_conn, &job_id).await;
+            return Err(FileUploadError::EnqueueFailed);
+        }
+    };
 
     Ok(StatusCode::OK)
 }

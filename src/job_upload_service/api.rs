@@ -43,9 +43,9 @@ impl UploadService {
         let url = "http://127.0.0.1:8080/push";
 
         //TODO:On error update the status of the job in db to split_enqueue_failed.
-        //Keep a background worker which loops and checks for enqueue_failed jobs and retry them.
+        //Keep a background worker which loops and checks for enqueue_failed jobs  and retry them.
         //Add a new column to DB called enqueue_attempt_left. On each queue failure decrement the
-        //count. If the zero then instead of split_enqueue_failed update status to dead.
+        //count. If count zero then instead of split_enqueue_failed update status to dead.
         let _ = client
             .post(url)
             .json(&payload)

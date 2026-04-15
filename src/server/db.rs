@@ -13,7 +13,7 @@ pub async fn create_job(db_conn: &Pool<Postgres>) -> Result<String, JobCreationE
     insert_row(db_conn, row_data).await
 }
 
-pub async fn fail_job(db_conn: &Pool<Postgres>, job_id: String) -> Result<(), JobCreationError>{
+pub async fn fail_job(db_conn: &Pool<Postgres>, job_id: &str) -> Result<(), JobCreationError>{
     let row_data = RowData {
         status: Some("FAILED".to_string()),
         total_pages: None,
@@ -25,10 +25,10 @@ pub async fn fail_job(db_conn: &Pool<Postgres>, job_id: String) -> Result<(), Jo
 async fn update_row(
     db_conn: &Pool<Postgres>,
     row_data: RowData,
-    job_id: String
+    job_id: &str
 ) -> Result<(), JobCreationError> {
 
-    let uuid = Uuid::from_str(&job_id)
+    let uuid = Uuid::from_str(job_id)
         .map_err(|e| JobCreationError::DBError(e.to_string()))?;
 
     let _ = sqlx::query_as::<_, RowDataResult>(
