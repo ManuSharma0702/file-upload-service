@@ -9,7 +9,8 @@ use axum::routing::{get, post};
 use sqlx::postgres::PgPoolOptions;
 
 use crate::job_upload_service::api::{Task, UploadService};
-use crate::server::db::{create_job, fail_job};
+use crate::retry_worker_service::service::RetryWorker;
+use crate::server::db::{create_job, update_status_of_job};
 use crate::server::s3::upload_to_s3;
 use crate::server::value::{AppState, FileObject, FileUploadError};
 use aws_config::load_from_env;
@@ -31,11 +32,15 @@ pub async fn run() -> Result<(), Box<dyn Error>> {
 
     let config = load_from_env().await;
     let client = Client::new(&config);
-    let mut upload_service = UploadService::new();
+    let mut upload_service = UploadService::new(db.clone());
     let upload_sender = upload_service.get_sender();
+    let retry_worker = RetryWorker::new(db.clone(), upload_service.get_sender());
 
     tokio::spawn(async move {
         upload_service.execute().await;
+    });
+    tokio::spawn(async move {
+        retry_worker.execute().await;
     });
 
     let state = AppState {
@@ -77,7 +82,7 @@ async fn handle_file_upload(
     let file_url = match upload_to_s3(&state.s3_client, file, "fileocr").await {
         Ok(val) => val,
         Err(e) => {
-            let _ = fail_job(&state.db_conn, &job_id).await;
+            let _ = update_status_of_job(&state.db_conn, &job_id, "dead".to_string()).await;
             return Err(e);
         }
     };
@@ -88,8 +93,6 @@ async fn handle_file_upload(
     //response. Now if the upload api returns failure then make the upload service update the status of job in db as enqueue
     //failed. Then create a background worker which looks for split_enqueue_failed jobs and retry them.
     //This retry logic should be implemented for each service separately.
-
-
 
     //If the channel fails, then respond with error to the user, and fail the job in DB.
     match state.job_sender.send(
@@ -102,7 +105,7 @@ async fn handle_file_upload(
     ).await {
         Ok(_) => (),
         Err(_)  => {
-            let _ = fail_job(&state.db_conn, &job_id).await;
+            let _ = update_status_of_job(&state.db_conn, &job_id, "dead".to_string()).await;
             return Err(FileUploadError::EnqueueFailed);
         }
     };

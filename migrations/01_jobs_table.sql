@@ -8,7 +8,9 @@ CREATE TABLE IF NOT EXISTS jobs  (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   status TEXT NOT NULL,
   page_completed INT NOT NULL,
-  total_pages INT NOT NULL
+  total_pages INT NOT NULL,
+  enqueue_left INT NOT NULL,
+  file_url TEXT NULL
 );
 
 -- Create results table

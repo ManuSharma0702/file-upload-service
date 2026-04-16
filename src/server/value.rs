@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use aws_sdk_s3::Client;
 use axum::{body::Bytes, http::StatusCode, response::IntoResponse};
 use sqlx::{prelude::FromRow, Pool, Postgres};
@@ -10,6 +12,22 @@ pub enum JobCreationError {
     Failed,
     AlreadyExists,
     DBError(String)
+}
+
+impl Display for JobCreationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            JobCreationError::DBError(e) => {
+                write!(f, "Database error: {}", e)
+            },
+            JobCreationError::Failed => {
+                write!(f, "Job creation failed")
+            },
+            JobCreationError::AlreadyExists => {
+                write!(f, "Job already exists")
+            }
+        }
+    }
 }
 
 pub enum FileUploadError {
@@ -31,6 +49,8 @@ pub struct RowData {
     pub status: Option<String>,
     pub total_pages: Option<i32>,
     pub completed_pages: Option<i32>,
+    pub enqueue_left: Option<i32>,
+    pub file_url: Option<String>
 }
 
 #[derive(Debug, FromRow)]

@@ -1,6 +1,9 @@
 use reqwest::Client;
 use serde::Serialize;
+use sqlx::{Pool, Postgres};
 use tokio::sync::mpsc::{self, Receiver, Sender};
+
+use crate::server::db::job_enqueue_fail;
 
 
 //Split Task
@@ -24,7 +27,8 @@ pub enum UploadError {
 
 pub struct UploadService {
     upload_service_tx: Sender<Task>,
-    upload_service_rx: Receiver<Task>
+    upload_service_rx: Receiver<Task>,
+    db: Pool<Postgres>,
 }
 
 impl UploadService {
@@ -43,22 +47,24 @@ impl UploadService {
         let url = "http://127.0.0.1:8080/push";
 
         //TODO:On error update the status of the job in db to split_enqueue_failed.
-        //Keep a background worker which loops and checks for enqueue_failed jobs  and retry them.
+        //Keep a background worker which loops and checks for split_enqueue_failed jobs  and retry them.
         //Add a new column to DB called enqueue_attempt_left. On each queue failure decrement the
-        //count. If count zero then instead of split_enqueue_failed update status to dead.
-        let _ = client
-            .post(url)
-            .json(&payload)
-            .send()
-            .await
-            .map_err(|e| UploadError::UploadFailed(e.to_string()))?;
+        //count. If count zero then instead of split_enqueue_failed, update status to dead.
+        match client.post(url).json(&payload).send().await {
+            Ok(_) => (),
+            Err(e) => {
+                let _ = job_enqueue_fail(&self.db, &payload.job_id).await.map_err(|e| UploadError::UploadFailed(e.to_string()));
+                return Err(UploadError::UploadFailed(e.to_string()));
+            }
+        }
+        // .map_err(|e| UploadError::UploadFailed(e.to_string()))?;
 
         Ok(())
     }
 
-    pub fn new() -> Self {
+    pub fn new(db: Pool<Postgres>) -> Self {
         let (sender, receiver) = mpsc::channel(1024);
-        Self { upload_service_tx: sender, upload_service_rx: receiver }
+        Self { upload_service_tx: sender, upload_service_rx: receiver, db }
     }
 
     pub fn get_sender(&self) -> Sender<Task> {
@@ -67,8 +73,3 @@ impl UploadService {
 
 }
 
-impl Default for UploadService {
-    fn default() -> Self {
-        Self::new()
-    }
-}
