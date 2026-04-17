@@ -10,7 +10,7 @@ use sqlx::postgres::PgPoolOptions;
 
 use crate::job_upload_service::api::{Task, UploadService};
 use crate::retry_worker_service::service::RetryWorker;
-use crate::server::db::{create_job, update_status_of_job};
+use crate::server::db::{add_file_url_in_db, create_job, update_status_of_job};
 use crate::server::s3::upload_to_s3;
 use crate::server::value::{AppState, FileObject, FileUploadError};
 use aws_config::load_from_env;
@@ -80,7 +80,11 @@ async fn handle_file_upload(
     println!("Job created successfully");
 
     let file_url = match upload_to_s3(&state.s3_client, file, "fileocr").await {
-        Ok(val) => val,
+        Ok(val) => {
+            //TODO: upload the file_url in db
+            add_file_url_in_db(&state.db_conn, &job_id, val.clone()).await?;
+            val
+        },
         Err(e) => {
             let _ = update_status_of_job(&state.db_conn, &job_id, "dead".to_string()).await;
             return Err(e);
