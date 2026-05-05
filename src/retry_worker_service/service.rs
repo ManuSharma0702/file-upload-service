@@ -47,7 +47,7 @@ impl RetryWorker {
                 Err(e) => eprintln!("failed to enqueue retry job: {} {}", f.id, e)
             }
         }
-        update_status_of_jobs(&self.db, success_enqueue, "pending_enqueue".to_string()).await?;
+        update_status_of_jobs(&self.db, success_enqueue, "split_enqueue_pending".to_string()).await?;
         Ok(())
     }
 

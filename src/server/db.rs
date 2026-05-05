@@ -6,7 +6,7 @@ use crate::{retry_worker_service::service::RetryWorkerRowResult, server::{db, va
 
 pub async fn create_job(db_conn: &Pool<Postgres>) -> Result<String, JobCreationError>{
     let row_data = RowData {
-        status: Some("pending_enqueue".to_string()),
+        status: Some("split_enqueue_pending".to_string()),
         total_pages: Some(0),
         completed_pages: Some(0),
         enqueue_left: Some(5),
