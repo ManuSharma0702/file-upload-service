@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS ocr_jobs (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   status TEXT NOT NULL,
   enqueue_left INT NOT NULL,
+  page_number INT NOT NULL,
   file_url TEXT NULL,
   CONSTRAINT fk_job
     FOREIGN KEY (job_id)
