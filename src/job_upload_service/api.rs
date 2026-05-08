@@ -1,9 +1,12 @@
+use std::str::FromStr;
+
 use reqwest::Client;
 use serde::Serialize;
 use sqlx::{Pool, Postgres};
 use tokio::sync::mpsc::{self, Receiver, Sender};
+use uuid::Uuid;
 
-use crate::server::db::job_enqueue_fail;
+use crate::server::db::{job_enqueue_fail, update_status_of_jobs};
 
 
 //Split Task
@@ -22,7 +25,8 @@ pub struct UploadServicePayload {
 #[derive(Debug)]
 pub enum UploadError {
     NotFound,
-    UploadFailed(String)
+    UploadFailed(String),
+    Failed(String)
 }
 
 pub struct UploadService {
@@ -50,8 +54,13 @@ impl UploadService {
         //Keep a background worker which loops and checks for split_enqueue_failed jobs  and retry them.
         //Add a new column to DB called enqueue_attempt_left. On each queue failure decrement the
         //count. If count zero then instead of split_enqueue_failed, update status to dead.
+        let mut success = vec![];
         match client.post(url).json(&payload).send().await {
-            Ok(_) => (),
+            Ok(_) => {
+                let uuid = Uuid::from_str(&payload.job_id)
+                    .map_err(|e| UploadError::Failed(e.to_string())).unwrap();
+                success.push(uuid);
+            },
             Err(e) => {
                 let _ = job_enqueue_fail(&self.db, &payload.job_id).await.map_err(|e| UploadError::UploadFailed(e.to_string()));
                 return Err(UploadError::UploadFailed(e.to_string()));
@@ -59,6 +68,7 @@ impl UploadService {
         }
         // .map_err(|e| UploadError::UploadFailed(e.to_string()))?;
 
+        update_status_of_jobs(&self.db, success, "split_enqueue_success".to_string()).await.map_err(|e| UploadError::Failed(e.to_string()))?;
         Ok(())
     }
 
