@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS jobs  (
   page_completed INT NOT NULL,
   total_pages INT NOT NULL,
   enqueue_left INT NOT NULL,
-  file_url TEXT NULL
+  file_url TEXT NULL,
+  result_url TEXT NULL -- aggregate service will fetch results from db and then properly structure them and store in s3 as a text document
 );
 
 -- Create OCR jobs table
